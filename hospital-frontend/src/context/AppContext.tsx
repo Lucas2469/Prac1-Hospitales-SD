@@ -1,250 +1,158 @@
 // @ts-nocheck
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
+
+const API = 'http://localhost:4000/api';
 
 const AppContext = createContext(null);
 
 export const useApp = () => {
   const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useApp debe usarse dentro de AppProvider');
-  }
+  if (!context) throw new Error('useApp debe usarse dentro de AppProvider');
   return context;
 };
 
+/**
+ * Convierte un cliente de MongoDB al formato del UI.
+ * El campo 'status' en Mongo es ACTIVE/NO_REPORTA → active/inactive en UI.
+ */
+function mapClient(c) {
+  const statusMap = {
+    ACTIVE: 'active',
+    NO_REPORTA: 'inactive',
+    WARN: 'warning',
+  };
+  return {
+    id: c._id,
+    clientId: c.clientId,
+    name: c.alias || c.clientId,
+    ip: c.ipAddress || '—',
+    status: statusMap[c.status] ?? 'inactive',
+    lastSeen: c.lastSeenAt ? timeSince(c.lastSeenAt) : '—',
+    lastSeenAt: c.lastSeenAt,
+    region: c.region || '',
+    location: c.region || c.alias || c.clientId,
+    model: 'Agente CNS',
+    cpu: '—',
+    ram: '—',
+    // Placeholder hasta que lleguemos a /api/metrics/:id/latest
+    disks: 0,
+    disksHealthy: 0,
+    totalSpace: '0',
+    usedSpace: '0',
+  };
+}
+
+/** Convierte un timestamp en "Hace X min/seg/h" */
+function timeSince(iso) {
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 60_000) return `Hace ${Math.round(diff / 1000)}s`;
+  if (diff < 3_600_000) return `Hace ${Math.round(diff / 60_000)} min`;
+  if (diff < 86_400_000) return `Hace ${Math.round(diff / 3_600_000)} h`;
+  return `Hace ${Math.round(diff / 86_400_000)} d`;
+}
+
 export const AppProvider = ({ children }) => {
   const [nodes, setNodes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState(null);
+  const [countdown, setCountdown] = useState(10);
   const [notifications, setNotifications] = useState([]);
   const [selectedNode, setSelectedNode] = useState(null);
   const [globalStats, setGlobalStats] = useState({
-    totalCapacity: '256 TB',
-    usedSpace: '142 TB',
-    freeSpace: '114 TB',
-    usedPercentage: 55,
-    freePercentage: 45,
-    totalNodes: 0,
-    activeNodes: 0,
-    inactiveNodes: 0,
-    warningNodes: 0,
+    totalNodes: 0, activeNodes: 0, inactiveNodes: 0, warningNodes: 0,
   });
 
-  // Cargar datos iniciales
-  useEffect(() => {
-    loadInitialData();
+  const intervalRef = useRef(null);
+
+  // ── Fetch clientes desde la API real ─────────────────────────────────────
+  const fetchClients = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/clients`);
+      const data = await res.json();
+      const mapped = Array.isArray(data) ? data.map(mapClient) : [];
+      setNodes(mapped);
+      updateGlobalStats(mapped);
+      setLastRefresh(new Date());
+      setCountdown(10);
+    } catch (err) {
+      console.error('[AppContext] Error al cargar clientes:', err.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const loadInitialData = () => {
-    // Datos de ejemplo de nodos
-    const mockNodes = [
-      { 
-        id: 1, 
-        name: 'Regional Norte', 
-        ip: '192.168.1.10', 
-        status: 'active', 
-        lastSeen: 'Hace 2 min', 
-        uptime: '99.9%', 
-        disks: 4,
-        disksHealthy: 4,
-        location: 'Barranquilla',
-        cpu: '45%',
-        ram: '62%',
-        model: 'Dell PowerEdge R740',
-        totalSpace: '8TB',
-        usedSpace: '4.2TB'
-      },
-      { 
-        id: 2, 
-        name: 'Regional Sur', 
-        ip: '192.168.1.11', 
-        status: 'active', 
-        lastSeen: 'Hace 1 min', 
-        uptime: '99.5%', 
-        disks: 3,
-        disksHealthy: 3,
-        location: 'Cali',
-        cpu: '32%',
-        ram: '48%',
-        model: 'HPE ProLiant DL380',
-        totalSpace: '6TB',
-        usedSpace: '3.8TB'
-      },
-      { 
-        id: 3, 
-        name: 'Regional Oriente', 
-        ip: '192.168.1.12', 
-        status: 'inactive', 
-        lastSeen: 'Hace 2 horas', 
-        uptime: '95.2%', 
-        disks: 2,
-        disksHealthy: 1,
-        location: 'Bucaramanga',
-        cpu: '0%',
-        ram: '0%',
-        model: 'Dell PowerEdge R740',
-        totalSpace: '4TB',
-        usedSpace: '3.2TB'
-      },
-      { 
-        id: 4, 
-        name: 'Regional Occidente', 
-        ip: '192.168.1.13', 
-        status: 'active', 
-        lastSeen: 'Hace 5 min', 
-        uptime: '98.7%', 
-        disks: 5,
-        disksHealthy: 5,
-        location: 'Medellín',
-        cpu: '28%',
-        ram: '44%',
-        model: 'Cisco UCS C240',
-        totalSpace: '10TB',
-        usedSpace: '6.5TB'
-      },
-      { 
-        id: 5, 
-        name: 'Regional Centro', 
-        ip: '192.168.1.14', 
-        status: 'warning', 
-        lastSeen: 'Hace 10 min', 
-        uptime: '97.1%', 
-        disks: 3,
-        disksHealthy: 2,
-        location: 'Bogotá',
-        cpu: '78%',
-        ram: '82%',
-        model: 'HPE ProLiant DL380',
-        totalSpace: '6TB',
-        usedSpace: '5.1TB'
-      },
-      { 
-        id: 6, 
-        name: 'Regional Insular', 
-        ip: '192.168.1.15', 
-        status: 'inactive', 
-        lastSeen: 'Hace 1 día', 
-        uptime: '88.3%', 
-        disks: 2,
-        disksHealthy: 0,
-        location: 'San Andrés',
-        cpu: '0%',
-        ram: '0%',
-        model: 'Dell PowerEdge R640',
-        totalSpace: '4TB',
-        usedSpace: '3.9TB'
-      },
-    ];
+  // ── Auto-refresh cada 10 s ────────────────────────────────────────────────
+  useEffect(() => {
+    fetchClients();
 
-    // Datos de ejemplo de notificaciones
-    const mockNotifications = [
-      {
-        id: 1,
-        title: 'Mantenimiento programado',
-        message: 'Actualización de firmware en nodos regionales para el próximo sábado',
-        type: 'warning',
-        priority: 'high',
-        regions: ['Norte', 'Sur', 'Occidente'],
-        status: 'sent',
-        sentAt: '2024-01-15T10:30:00',
-        sentBy: 'Admin CNS',
-        readCount: 45,
-        totalRecipients: 48
-      },
-      {
-        id: 2,
-        title: 'Nueva política de almacenamiento',
-        message: 'Se actualizan las cuotas de almacenamiento por región. Revisar documentación.',
-        type: 'info',
-        priority: 'medium',
-        regions: ['Todas las regiones'],
-        status: 'sent',
-        sentAt: '2024-01-14T15:20:00',
-        sentBy: 'Admin CNS',
-        readCount: 120,
-        totalRecipients: 156
-      },
-      {
-        id: 3,
-        title: 'ALERTA: Nodo Oriental sin conexión',
-        message: 'El nodo de la regional oriental no reporta desde hace 30 minutos. Personal técnico asignado.',
-        type: 'critical',
-        priority: 'urgent',
-        regions: ['Oriente'],
-        status: 'sent',
-        sentAt: '2024-01-14T08:15:00',
-        sentBy: 'Sistema Automático',
-        readCount: 12,
-        totalRecipients: 12
-      },
-    ];
+    // Actualizar countdown cada segundo
+    const countTimer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) { fetchClients(); return 10; }
+        return prev - 1;
+      });
+    }, 1000);
 
-    setNodes(mockNodes);
-    setNotifications(mockNotifications);
-    updateGlobalStats(mockNodes);
-  };
+    return () => clearInterval(countTimer);
+  }, [fetchClients]);
 
   const updateGlobalStats = (nodesData) => {
-    const totalNodes = nodesData.length;
-    const activeNodes = nodesData.filter(n => n.status === 'active').length;
-    const inactiveNodes = nodesData.filter(n => n.status === 'inactive').length;
-    const warningNodes = nodesData.filter(n => n.status === 'warning').length;
-
-    setGlobalStats(prev => ({
-      ...prev,
-      totalNodes,
-      activeNodes,
-      inactiveNodes,
-      warningNodes,
-    }));
+    setGlobalStats({
+      totalNodes: nodesData.length,
+      activeNodes: nodesData.filter(n => n.status === 'active').length,
+      inactiveNodes: nodesData.filter(n => n.status === 'inactive').length,
+      warningNodes: nodesData.filter(n => n.status === 'warning').length,
+    });
   };
 
-  const addNotification = (notification) => {
-    const newNotification = {
-      id: notifications.length + 1,
+  // ── Notificaciones locales + envío via REST ───────────────────────────────
+  const addNotification = async (notification) => {
+    const newNotif = {
+      id: Date.now(),
       ...notification,
       sentAt: notification.schedule === 'now' ? new Date().toISOString() : null,
       scheduledFor: notification.schedule === 'schedule' ? notification.scheduledDate : null,
       sentBy: 'Admin CNS',
       readCount: 0,
-      totalRecipients: notification.regions.length * 4,
-      status: notification.schedule === 'now' ? 'sent' : 'scheduled'
+      totalRecipients: notification.regions?.length ?? 1,
+      status: notification.schedule === 'now' ? 'sent' : 'scheduled',
     };
-    
-    setNotifications([newNotification, ...notifications]);
-    
-    // Si es una notificación crítica, actualizar estado de nodos
-    if (notification.type === 'critical' && notification.regions[0] !== 'Todas las regiones') {
-      const updatedNodes = nodes.map(node => {
-        if (notification.regions.includes(node.location.split(' ')[1])) {
-          return { ...node, status: 'warning' };
-        }
-        return node;
-      });
-      setNodes(updatedNodes);
-      updateGlobalStats(updatedNodes);
+    setNotifications(prev => [newNotif, ...prev]);
+
+    // Si el clientId está disponible, enviar también por TCP via REST
+    if (notification.clientId && notification.message) {
+      try {
+        await fetch(`${API}/notifications/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clientId: notification.clientId, message: notification.message }),
+        });
+      } catch (e) {
+        console.warn('[addNotification] No se pudo enviar TCP:', e.message);
+      }
     }
   };
 
-  const deleteNotification = (id) => {
-    setNotifications(notifications.filter(n => n.id !== id));
-  };
+  const deleteNotification = (id) =>
+    setNotifications(prev => prev.filter(n => n.id !== id));
 
   const updateNodeStatus = (nodeId, status) => {
-    const updatedNodes = nodes.map(node => 
-      node.id === nodeId ? { ...node, status } : node
-    );
-    setNodes(updatedNodes);
-    updateGlobalStats(updatedNodes);
+    setNodes(prev => {
+      const updated = prev.map(n => n.id === nodeId ? { ...n, status } : n);
+      updateGlobalStats(updated);
+      return updated;
+    });
   };
 
   return (
     <AppContext.Provider value={{
-      nodes,
-      notifications,
-      selectedNode,
-      globalStats,
+      nodes, loading, lastRefresh, countdown,
+      notifications, selectedNode, globalStats,
       setSelectedNode,
       addNotification,
       deleteNotification,
       updateNodeStatus,
+      refreshNow: fetchClients,
     }}>
       {children}
     </AppContext.Provider>

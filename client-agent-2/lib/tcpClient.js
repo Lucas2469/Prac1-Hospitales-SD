@@ -10,13 +10,7 @@ import { getDiskInfo } from "./diskCollector.js";
 import { logMessage } from "./logManager.js";
 
 function getLocalIP() {
-  const nets = networkInterfaces();
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name] || []) {
-      if (net.family === "IPv4" && !net.internal) return net.address;
-    }
-  }
-  return "127.0.0.1";
+  return "192.168.1.150"; // IP simulada fija para el cliente 2
 }
 
 export function createClient(config) {
@@ -116,9 +110,9 @@ export function createClient(config) {
         // Mostrar en la UI web
         if (typeof onNotification === 'function') onNotification(message);
       } else if (msg.type === "NOTIFICATION") {
-        const message = msg.message || "Notificación recibida";
-        logMessage(message, { type: "NOTIFICATION", receivedAt: msg.sentAt });
-        if (typeof onNotification === 'function') onNotification(message);
+        logMessage(msg.message, { type: "NOTIFICATION" });
+        send({ type: "ACK", node_id: nodeAlias, status: "Notificación recibida" });
+        if (typeof onNotification === 'function') onNotification(msg.message);
       }
     } catch (err) {
       console.warn("[tcpClient] Mensaje no parseable:", data?.slice?.(0, 80));

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CNS — Agente Cliente</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0a0e1a;
+      --surface: #111827;
+      --card: #1a2234;
+      --border: rgba(255, 255, 255, 0.07);
+      --text: #e2e8f0;
+      --muted: #6b7280;
+      --green: #10b981;
+      --green2: #059669;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --blue: #3b82f6;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .layout {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 16px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+
+    .logo .dot {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--green), #34d399);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .logo h1 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .logo p {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .2s;
+      margin-bottom: 4px;
+    }
+
+    .nav-item.active,
+    .nav-item:hover {
+      background: rgba(16, 185, 129, .12);
+      color: var(--green);
+    }
+
+    /* ── Main ── */
+    .main {
+      flex: 1;
+      padding: 32px;
+      overflow: auto;
+    }
+
+    .page-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .page-sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+
+    /* ── Status hero ── */
+    .status-hero {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .status-hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(16, 185, 129, .08), transparent);
+    }
+
+    .status-orb {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+      background: rgba(16, 185, 129, .15);
+      border: 2px solid rgba(16, 185, 129, .3);
+    }
+
+    .status-orb.disconnected {
+      background: rgba(239, 68, 68, .15);
+      border-color: rgba(239, 68, 68, .3);
+    }
+
+    .status-info h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .status-info p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+
+    .badge-connected {
+      background: rgba(16, 185, 129, .2);
+      color: #10b981;
+    }
+
+    .badge-disconnected {
+      background: rgba(239, 68, 68, .2);
+      color: #ef4444;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+
+    .badge-dot.pulse {
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1)
+      }
+
+      50% {
+        opacity: .4;
+        transform: scale(1.4)
+      }
+    }
+
+    .server-info {
+      margin-left: auto;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .server-info .label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .server-info .val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    /* ── Stats strip ── */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .stat-card .num {
+      font-size: 30px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .stat-card .lbl {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-top: 4px;
+    }
+
+    /* ── Disks section ── */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .refresh-time {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .disks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    .disk-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+    }
+
+    .disk-card .dk-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .disk-card .dk-fs {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 14px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .disk-metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .disk-metric .val {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .disk-metric .lbl {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+      text-transform: uppercase;
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: rgba(255, 255, 255, .08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width .5s ease;
+    }
+
+    .fill-green {
+      background: linear-gradient(90deg, #10b981, #34d399);
+    }
+
+    .fill-yellow {
+      background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    }
+
+    .fill-red {
+      background: linear-gradient(90deg, #ef4444, #f87171);
+    }
+
+    .disk-pct {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: right;
+      margin-top: 4px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: 16px;
+    }
+
+    .empty-state .icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+    }
+
+    /* ── Notifications ── */
+    .notif-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .notif-card {
+      background: var(--card);
+      border: 1px solid rgba(59, 130, 246, .2);
+      border-left: 3px solid var(--blue);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .notif-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .notif-msg {
+      font-size: 13px;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .notif-time {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .notif-empty {
+      text-align: center;
+      padding: 28px;
+      color: var(--muted);
+    }
+
+    /* ── Footer ── */
+    .footer-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-top: 1px solid var(--border);
+      margin-top: 20px;
+    }
+
+    .footer-bar .ft {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* ── Animations ── */
+    .fade-in {
+      animation: fadeIn .3s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="dot">💻</div>
+        <div>
+          <h1>CNS Client</h1>
+          <p>Agente Regional</p>
+        </div>
+      </div>
+      <div class="nav-item active">🖥️ &nbsp;Estado</div>
+      <div class="nav-item">💾 &nbsp;Discos</div>
+      <div class="nav-item">🔔 &nbsp;Notificaciones</div>
+
+      <div style="margin-top: auto;"></div>
+      <a onclick="window.open(`http://${window.location.hostname}:5173`, '_blank')"
+        style="text-decoration:none; margin-top: 10px;">
+        <div class="nav-item"
+          style="background: rgba(59, 130, 246, .12); color: var(--blue); justify-content: center; font-weight: 600;">
+          🌐 &nbsp;Ir al Admin UI
+        </div>
+      </a>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <div class="page-title">Panel del Agente</div>
+      <div class="page-sub" id="lastSub">Actualizando...</div>
+
+      <!-- Status Hero -->
+      <div class="status-hero fade-in">
+        <div class="status-orb" id="heroOrb">💻</div>
+        <div class="status-info">
+          <h2 id="heroAlias">—</h2>
+          <p id="heroServer" style="font-family: 'JetBrains Mono', monospace; color: #10b981;">IP: Cargando...</p>
+          <div class="status-badge" id="heroBadge">
+            <div class="badge-dot" id="badgeDot"></div>
+            <span id="badgeText">Desconectado</span>
+          </div>
+        </div>
+        <div class="server-info">
+          <div class="label">MÉTRICAS ENVIADAS</div>
+          <div class="val" id="heroCount">0</div>
+          <div class="label" style="margin-top:8px">ÚLTIMO ENVÍO</div>
+          <div class="val" id="heroLastSend" style="font-size:12px">—</div>
+        </div>
+      </div>
+
+      <!-- Stats Strip -->
+      <div class="stats-strip fade-in">
+        <div class="stat-card">
+          <div class="num" id="statDisks">0</div>
+          <div class="lbl">Discos detectados</div>
+        </div>
+        <div class="stat-card">
+          <div class="num" id="statNotifs">0</div>
+          <div class="lbl">Notificaciones recibidas</div>
+        </div>
+        <div class="stat-card">
+          <div class="num" id="statUsed">0%</div>
+          <div class="lbl">Uso promedio disco</div>
+        </div>
+      </div>
+
+      <!-- Disks -->
+      <div class="section-header">
+        <div class="section-title">💾 Discos del sistema</div>
+        <div class="refresh-time" id="refreshTag">Actualizando cada 5s</div>
+      </div>
+      <div class="disks-grid fade-in" id="disksGrid">
+        <div class="empty-state">
+          <div class="icon">⏳</div>
+          <div>Esperando datos del servidor...</div>
+        </div>
+      </div>
+
+      <!-- Notifications -->
+      <div class="section-header" style="margin-top: 12px;">
+        <div class="section-title">🔔 Notificaciones del admin</div>
+      </div>
+      <div id="notifList" class="notif-list">
+        <div class="notif-empty">Sin notificaciones recibidas aún</div>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer-bar">
+        <div class="ft">🟢 CNS Agente Cliente</div>
+        <div class="ft" id="ftTime">—</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+    function timeSince(iso) {
+      if (!iso) return '—';
+      const diff = Date.now() - new Date(iso).getTime();
+      if (diff < 60000) return `Hace ${Math.round(diff / 1000)}s`;
+      if (diff < 3600000) return `Hace ${Math.round(diff / 60000)} min`;
+      return `Hace ${Math.round(diff / 3600000)} h`;
+    }
+
+    function fillColor(pct) {
+      if (pct > 85) return 'fill-red';
+      if (pct > 70) return 'fill-yellow';
+      return 'fill-green';
+    }
+
+    function render(s) {
+      // Hero
+      const connected = s.connected;
+      $('heroOrb').className = `status-orb ${connected ? '' : 'disconnected'}`;
+      $('heroOrb').textContent = connected ? '🟢' : '🔴';
+      $('heroAlias').textContent = s.nodeAlias || '—';
+      $('heroServer').textContent = `Mi IP: ${s.localIp || '127.0.0.1'}`;
+      $('heroBadge').className = `status-badge ${connected ? 'badge-connected' : 'badge-disconnected'}`;
+      $('badgeDot').className = `badge-dot ${connected ? 'pulse' : ''}`;
+      $('badgeText').textContent = connected ? 'Conectado' : 'Desconectado';
+      $('heroCount').textContent = s.metricsCount ?? 0;
+      $('heroLastSend').textContent = timeSince(s.lastSend);
+
+      // Stats
+      const disks = s.disks || [];
+      $('statDisks').textContent = disks.length;
+      $('statNotifs').textContent = (s.notifications || []).length;
+      const avgUsed = disks.length
+        ? (disks.reduce((a, d) => a + Number(d.percent || 0), 0) / disks.length).toFixed(1)
+        : 0;
+      $('statUsed').textContent = `${avgUsed}%`;
+
+      // Disks grid
+      if (disks.length === 0) {
+        $('disksGrid').innerHTML = `<div class="empty-state"><div class="icon">⏳</div><div>${connected ? 'El agente aún no ha enviado métricas' : 'Esperando conexión al servidor...'}</div></div>`;
+      } else {
+        $('disksGrid').innerHTML = disks.map(d => {
+          const pct = Number(d.percent || 0);
+          const c = fillColor(pct);
+          return `
+        <div class="disk-card fade-in">
+          <div class="dk-name">💾 ${d.name || 'Disco'}</div>
+          <div class="dk-fs">${d.type || 'NTFS'}</div>
+          <div class="disk-metrics">
+            <div class="disk-metric">
+              <div class="val">${Number(d.total || 0).toFixed(1)}<small style="font-size:11px;color:#6b7280"> GB</small></div>
+              <div class="lbl">Total</div>
+            </div>
+            <div class="disk-metric">
+              <div class="val">${Number(d.used || 0).toFixed(1)}<small style="font-size:11px;color:#6b7280"> GB</small></div>
+              <div class="lbl">Usado</div>
+            </div>
+            <div class="disk-metric">
+              <div class="val">${Number(d.free || 0).toFixed(1)}<small style="font-size:11px;color:#6b7280"> GB</small></div>
+              <div class="lbl">Libre</div>
+            </div>
+          </div>
+          <div class="progress-bar"><div class="progress-fill ${c}" style="width:${Math.min(pct, 100)}%"></div></div>
+          <div class="disk-pct">${pct.toFixed(1)}% usado</div>
+        </div>`;
+        }).join('');
+      }
+
+      // Notifications
+      const notifs = s.notifications || [];
+      if (notifs.length === 0) {
+        $('notifList').innerHTML = '<div class="notif-empty">📭 Sin notificaciones recibidas aún</div>';
+      } else {
+        $('notifList').innerHTML = notifs.map(n => `
+        <div class="notif-card fade-in">
+          <div class="notif-icon">🔔</div>
+          <div>
+            <div class="notif-msg">${n.message}</div>
+            <div class="notif-time">${new Date(n.receivedAt).toLocaleString()}</div>
+          </div>
+        </div>`).join('');
+      }
+
+      // Footer
+      const now = new Date().toLocaleTimeString();
+      $('ftTime').textContent = `Actualizado: ${now}`;
+      $('lastSub').textContent = `Agente activo · ${now}`;
+    }
+
+    async function poll() {
+      try {
+        const r = await fetch('/api/status');
+        const s = await r.json();
+        render(s);
+      } catch (e) {
+        $('heroOrb').textContent = '🔴';
+      }
+    }
+
+    poll();
+    setInterval(poll, 5000);
+  </script>
+</body>
+
+</html>

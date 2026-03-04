@@ -1,18 +1,20 @@
 // @ts-nocheck
 import React, { useState } from 'react';
-import { 
-  Send, Bell, AlertCircle, Info, CheckCircle, 
+import {
+  Send, Bell, AlertCircle, Info, CheckCircle,
   AlertTriangle, X, Users, Clock, Mail, MessageSquare,
   Plus, Trash2, Edit, Eye, Filter, Calendar,
   ChevronDown, ChevronUp, Download
 } from 'lucide-react';
 import { formatDate } from '../../utils/helpers.js';
 import { useNotifications } from '../../hooks/useNotifications.js';
+import { useApp } from '../../context/AppContext.tsx';
 
 const NotificationPanel = () => {
   const { notifications, addNotification, deleteNotification } = useNotifications();
+  const { nodes } = useApp();
   const [showForm, setShowForm] = useState(false);
-  const [selectedRegions, setSelectedRegions] = useState([]);
+  const [selectedClientId, setSelectedClientId] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [expandedId, setExpandedId] = useState(null);
   const [formData, setFormData] = useState({
@@ -20,18 +22,13 @@ const NotificationPanel = () => {
     message: '',
     type: 'info',
     priority: 'medium',
-    regions: [],
     schedule: 'now',
     scheduledDate: '',
     expiresIn: '24h'
   });
 
-  const regions = [
-    'Norte', 'Sur', 'Oriente', 'Occidente', 'Centro', 'Insular'
-  ];
-
   const getTypeIcon = (type) => {
-    switch(type) {
+    switch (type) {
       case 'info': return <Info className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />;
       case 'warning': return <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600" />;
       case 'critical': return <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />;
@@ -41,7 +38,7 @@ const NotificationPanel = () => {
   };
 
   const getTypeBg = (type) => {
-    switch(type) {
+    switch (type) {
       case 'info': return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'warning': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       case 'critical': return 'bg-red-100 text-red-800 border-red-300';
@@ -51,7 +48,7 @@ const NotificationPanel = () => {
   };
 
   const getPriorityColor = (priority) => {
-    switch(priority) {
+    switch (priority) {
       case 'urgent': return 'bg-red-100 text-red-800 border-red-300';
       case 'high': return 'bg-orange-100 text-orange-800 border-orange-300';
       case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
@@ -60,49 +57,38 @@ const NotificationPanel = () => {
     }
   };
 
-  const handleRegionToggle = (region) => {
-    setSelectedRegions(prev => 
-      prev.includes(region)
-        ? prev.filter(r => r !== region)
-        : [...prev, region]
-    );
-  };
-
-  const handleSelectAllRegions = () => {
-    if (selectedRegions.length === regions.length) {
-      setSelectedRegions([]);
-    } else {
-      setSelectedRegions([...regions]);
-    }
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
+    if (!selectedClientId) {
+      alert("Por favor selecciona un nodo destinatario");
+      return;
+    }
+
     const notificationData = {
       ...formData,
-      regions: selectedRegions.length === regions.length ? ['Todas las regiones'] : selectedRegions,
+      clientId: selectedClientId,
+      regions: [selectedClientId],
       sentAt: new Date().toISOString(),
     };
-    
+
     addNotification(notificationData);
-    
+
     // Resetear formulario
     setFormData({
       title: '',
       message: '',
       type: 'info',
       priority: 'medium',
-      regions: [],
       schedule: 'now',
       scheduledDate: '',
       expiresIn: '24h'
     });
-    setSelectedRegions([]);
+    setSelectedClientId('');
     setShowForm(false);
   };
 
-  const filteredNotifications = notifications.filter(n => 
+  const filteredNotifications = notifications.filter(n =>
     filterStatus === 'all' || n.status === filterStatus
   );
 
@@ -128,7 +114,7 @@ const NotificationPanel = () => {
               Gestiona y envía mensajes a las regionales
             </p>
           </div>
-          
+
           <button
             onClick={() => setShowForm(!showForm)}
             className="w-full sm:w-auto px-3 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-2.5 md:py-3 lg:py-4 bg-gradient-to-r from-green-700 to-emerald-700 text-white rounded-lg sm:rounded-xl hover:from-green-800 hover:to-emerald-800 flex items-center justify-center gap-1.5 sm:gap-2 transition-all shadow-md sm:shadow-lg shadow-green-300 font-medium text-xs sm:text-sm md:text-base lg:text-lg"
@@ -151,7 +137,7 @@ const NotificationPanel = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg sm:rounded-xl md:rounded-2xl shadow-md sm:shadow-lg md:shadow-xl p-3 sm:p-4 md:p-5 lg:p-6 xl:p-8 hover:shadow-xl transition-all text-white">
             <div className="flex items-center justify-between">
               <div>
@@ -163,7 +149,7 @@ const NotificationPanel = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-gradient-to-br from-yellow-500 to-amber-500 rounded-lg sm:rounded-xl md:rounded-2xl shadow-md sm:shadow-lg md:shadow-xl p-3 sm:p-4 md:p-5 lg:p-6 xl:p-8 hover:shadow-xl transition-all text-white">
             <div className="flex items-center justify-between">
               <div>
@@ -175,7 +161,7 @@ const NotificationPanel = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-gradient-to-br from-red-500 to-rose-500 rounded-lg sm:rounded-xl md:rounded-2xl shadow-md sm:shadow-lg md:shadow-xl p-3 sm:p-4 md:p-5 lg:p-6 xl:p-8 hover:shadow-xl transition-all text-white">
             <div className="flex items-center justify-between">
               <div>
@@ -194,40 +180,40 @@ const NotificationPanel = () => {
           <div className="flex flex-row flex-wrap items-center gap-1.5 sm:gap-2 md:gap-3 lg:gap-4 w-full">
             <button
               onClick={() => setFilterStatus('all')}
-              className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-2.5 lg:py-3 xl:py-4 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm lg:text-base xl:text-lg font-medium transition-all flex-1 sm:flex-none min-w-[60px] sm:min-w-[80px] md:min-w-[90px] lg:min-w-[100px] xl:min-w-[120px] ${
-                filterStatus === 'all' 
-                  ? 'bg-gradient-to-r from-green-700 to-emerald-700 text-white shadow-md sm:shadow-lg shadow-green-300' 
-                  : 'bg-green-50 text-green-800 hover:bg-green-100 border border-green-300'
-              }`}
+              className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-2.5 lg:py-3 xl:py-4 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm lg:text-base xl:text-lg font-medium transition-all flex-1 sm:flex-none min-w-[60px] sm:min-w-[80px] md:min-w-[90px] lg:min-w-[100px] xl:min-w-[120px] ${filterStatus === 'all'
+                ? 'bg-gradient-to-r from-green-700 to-emerald-700 text-white shadow-md sm:shadow-lg shadow-green-300'
+                : 'bg-green-50 text-green-800 hover:bg-green-100 border border-green-300'
+                }`}
             >
               <span className="whitespace-nowrap">Todas</span>
-              <span className="ml-1 sm:ml-1.5 md:ml-2 px-1 sm:px-1.5 md:px-2 py-0.5 bg-white/20 rounded-full text-[8px] sm:text-[10px] md:text-xs lg:text-sm text-white">
+              <span className={`ml-1 sm:ml-1.5 md:ml-2 px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] md:text-xs lg:text-sm ${filterStatus === 'all' ? 'bg-white/20 text-white' : 'bg-green-200 text-green-800'
+                }`}>
                 {stats.total}
               </span>
             </button>
             <button
               onClick={() => setFilterStatus('sent')}
-              className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-2.5 lg:py-3 xl:py-4 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm lg:text-base xl:text-lg font-medium transition-all flex-1 sm:flex-none min-w-[60px] sm:min-w-[80px] md:min-w-[90px] lg:min-w-[100px] xl:min-w-[120px] ${
-                filterStatus === 'sent' 
-                  ? 'bg-gradient-to-r from-green-700 to-emerald-700 text-white shadow-md sm:shadow-lg shadow-green-300' 
-                  : 'bg-green-50 text-green-800 hover:bg-green-100 border border-green-300'
-              }`}
+              className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-2.5 lg:py-3 xl:py-4 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm lg:text-base xl:text-lg font-medium transition-all flex-1 sm:flex-none min-w-[60px] sm:min-w-[80px] md:min-w-[90px] lg:min-w-[100px] xl:min-w-[120px] ${filterStatus === 'sent'
+                ? 'bg-gradient-to-r from-green-700 to-emerald-700 text-white shadow-md sm:shadow-lg shadow-green-300'
+                : 'bg-green-50 text-green-800 hover:bg-green-100 border border-green-300'
+                }`}
             >
               <span className="whitespace-nowrap">Enviadas</span>
-              <span className="ml-1 sm:ml-1.5 md:ml-2 px-1 sm:px-1.5 md:px-2 py-0.5 bg-white/20 rounded-full text-[8px] sm:text-[10px] md:text-xs lg:text-sm text-white">
+              <span className={`ml-1 sm:ml-1.5 md:ml-2 px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] md:text-xs lg:text-sm ${filterStatus === 'sent' ? 'bg-white/20 text-white' : 'bg-green-200 text-green-800'
+                }`}>
                 {stats.sent}
               </span>
             </button>
             <button
               onClick={() => setFilterStatus('scheduled')}
-              className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-2.5 lg:py-3 xl:py-4 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm lg:text-base xl:text-lg font-medium transition-all flex-1 sm:flex-none min-w-[60px] sm:min-w-[80px] md:min-w-[90px] lg:min-w-[100px] xl:min-w-[120px] ${
-                filterStatus === 'scheduled' 
-                  ? 'bg-gradient-to-r from-yellow-600 to-amber-600 text-white shadow-md sm:shadow-lg shadow-yellow-300' 
-                  : 'bg-yellow-50 text-yellow-800 hover:bg-yellow-100 border border-yellow-300'
-              }`}
+              className={`px-2.5 sm:px-3 md:px-4 lg:px-5 xl:px-6 py-1.5 sm:py-2 md:py-2.5 lg:py-3 xl:py-4 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm lg:text-base xl:text-lg font-medium transition-all flex-1 sm:flex-none min-w-[60px] sm:min-w-[80px] md:min-w-[90px] lg:min-w-[100px] xl:min-w-[120px] ${filterStatus === 'scheduled'
+                ? 'bg-gradient-to-r from-yellow-600 to-amber-600 text-white shadow-md sm:shadow-lg shadow-yellow-300'
+                : 'bg-yellow-50 text-yellow-800 hover:bg-yellow-100 border border-yellow-300'
+                }`}
             >
               <span className="whitespace-nowrap">Programadas</span>
-              <span className="ml-1 sm:ml-1.5 md:ml-2 px-1 sm:px-1.5 md:px-2 py-0.5 bg-white/20 rounded-full text-[8px] sm:text-[10px] md:text-xs lg:text-sm text-white">
+              <span className={`ml-1 sm:ml-1.5 md:ml-2 px-1 sm:px-1.5 md:px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] md:text-xs lg:text-sm ${filterStatus === 'scheduled' ? 'bg-white/20 text-white' : 'bg-yellow-200 text-yellow-800'
+                }`}>
                 {stats.scheduled}
               </span>
             </button>
@@ -241,7 +227,7 @@ const NotificationPanel = () => {
               <Plus className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-7 lg:h-7 text-green-700" />
               Crear nueva notificación
             </h2>
-            
+
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6">
               {/* Tipo y prioridad */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
@@ -308,47 +294,24 @@ const NotificationPanel = () => {
                 />
               </div>
 
-              {/* Regiones */}
+              {/* Cliente Específico */}
               <div>
                 <label className="block text-[10px] sm:text-xs md:text-sm lg:text-base font-medium text-green-800 mb-0.5 sm:mb-1 md:mb-2">
-                  Regiones destinatarias
+                  Nodo destinatario
                 </label>
-                <div className="mb-1.5 sm:mb-2 md:mb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1.5 sm:gap-2">
-                  <button
-                    type="button"
-                    onClick={handleSelectAllRegions}
-                    className="text-[10px] sm:text-xs md:text-sm lg:text-base text-green-700 hover:text-green-900 font-medium"
-                  >
-                    {selectedRegions.length === regions.length ? 'Deseleccionar todas' : 'Seleccionar todas'}
-                  </button>
-                  <span className="text-[10px] sm:text-xs md:text-sm lg:text-base text-green-700">
-                    {selectedRegions.length} de {regions.length} seleccionadas
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 sm:gap-2 md:gap-3 lg:gap-4 xl:gap-6">
-                  {regions.map(region => (
-                    <label 
-                      key={region} 
-                      className={`flex items-center justify-center p-1.5 sm:p-2 md:p-2.5 lg:p-3 xl:p-4 border rounded-lg sm:rounded-xl cursor-pointer transition-all ${
-                        selectedRegions.includes(region) 
-                          ? 'border-green-600 bg-green-100 shadow-sm' 
-                          : 'border-green-300 bg-green-50 hover:bg-green-100'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedRegions.includes(region)}
-                        onChange={() => handleRegionToggle(region)}
-                        className="hidden"
-                      />
-                      <span className={`text-[8px] sm:text-[10px] md:text-xs lg:text-sm xl:text-base font-medium whitespace-nowrap ${
-                        selectedRegions.includes(region) ? 'text-green-900' : 'text-green-700'
-                      }`}>
-                        {region}
-                      </span>
-                    </label>
+                <select
+                  value={selectedClientId}
+                  onChange={(e) => setSelectedClientId(e.target.value)}
+                  className="w-full px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 lg:py-3 border border-green-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 bg-green-50 text-green-900 text-xs sm:text-sm md:text-base lg:text-lg"
+                  required
+                >
+                  <option value="" disabled>Selecciona un nodo...</option>
+                  {nodes.map(node => (
+                    <option key={node.clientId} value={node.clientId}>
+                      {node.name} ({node.ip})
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
 
               {/* Programación */}
@@ -413,7 +376,7 @@ const NotificationPanel = () => {
                 <button
                   type="submit"
                   className="w-full sm:w-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-8 py-1.5 sm:py-2 md:py-2.5 lg:py-3 bg-gradient-to-r from-green-700 to-emerald-700 text-white rounded-lg sm:rounded-xl hover:from-green-800 hover:to-emerald-800 flex items-center justify-center gap-1.5 sm:gap-2 transition-all shadow-md sm:shadow-lg shadow-green-300 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-xs sm:text-sm md:text-base lg:text-lg"
-                  disabled={selectedRegions.length === 0 || !formData.title || !formData.message}
+                  disabled={!selectedClientId || !formData.title || !formData.message}
                 >
                   <Send className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 lg:w-5 lg:h-5" />
                   {formData.schedule === 'now' ? 'Enviar ahora' : 'Programar'}
@@ -438,7 +401,7 @@ const NotificationPanel = () => {
                 className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl shadow-md sm:shadow-lg md:shadow-xl hover:shadow-lg transition-all border border-green-200 overflow-hidden w-full"
               >
                 {/* Cabecera */}
-                <div 
+                <div
                   className="p-3 sm:p-4 md:p-5 lg:p-6 xl:p-8 cursor-pointer hover:bg-green-50"
                   onClick={() => setExpandedId(expandedId === notification.id ? null : notification.id)}
                 >
@@ -446,7 +409,7 @@ const NotificationPanel = () => {
                     <div className={`p-1.5 sm:p-2 md:p-2.5 lg:p-3 xl:p-4 rounded-lg sm:rounded-xl flex-shrink-0 ${getTypeBg(notification.type)}`}>
                       {getTypeIcon(notification.type)}
                     </div>
-                    
+
                     <div className="flex-1 min-w-0 w-full">
                       <div className="flex flex-col sm:flex-row items-start justify-between gap-1.5 sm:gap-2 md:gap-3 lg:gap-4">
                         <div className="flex-1 min-w-0 w-full">
@@ -460,14 +423,13 @@ const NotificationPanel = () => {
                         <div className="flex flex-row flex-wrap items-center gap-1 sm:gap-1.5 md:gap-2 lg:gap-3 flex-shrink-0">
                           <span className={`px-1.5 sm:px-2 md:px-2.5 lg:px-3 xl:px-4 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] md:text-xs lg:text-sm font-medium whitespace-nowrap ${getPriorityColor(notification.priority)}`}>
                             {notification.priority === 'urgent' ? 'Urgente' :
-                             notification.priority === 'high' ? 'Alta' :
-                             notification.priority === 'medium' ? 'Media' : 'Baja'}
+                              notification.priority === 'high' ? 'Alta' :
+                                notification.priority === 'medium' ? 'Media' : 'Baja'}
                           </span>
-                          <span className={`px-1.5 sm:px-2 md:px-2.5 lg:px-3 xl:px-4 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] md:text-xs lg:text-sm font-medium whitespace-nowrap ${
-                            notification.status === 'sent' 
-                              ? 'bg-green-100 text-green-800 border-green-300' 
-                              : 'bg-yellow-100 text-yellow-800 border-yellow-300'
-                          }`}>
+                          <span className={`px-1.5 sm:px-2 md:px-2.5 lg:px-3 xl:px-4 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[10px] md:text-xs lg:text-sm font-medium whitespace-nowrap ${notification.status === 'sent'
+                            ? 'bg-green-100 text-green-800 border-green-300'
+                            : 'bg-yellow-100 text-yellow-800 border-yellow-300'
+                            }`}>
                             {notification.status === 'sent' ? 'Enviada' : 'Programada'}
                           </span>
                         </div>
@@ -480,7 +442,7 @@ const NotificationPanel = () => {
                             {notification.regions.join(', ')}
                           </span>
                         </div>
-                        
+
                         {notification.status === 'sent' ? (
                           <>
                             <div className="flex items-center gap-0.5 sm:gap-1 text-green-700 bg-green-50 px-1.5 sm:px-2 md:px-2.5 lg:px-3 xl:px-4 py-0.5 sm:py-1 rounded-full border border-green-200">
@@ -504,7 +466,7 @@ const NotificationPanel = () => {
                             </span>
                           </div>
                         )}
-                        
+
                         <div className="flex items-center gap-0.5 sm:gap-1 text-green-700 bg-green-50 px-1.5 sm:px-2 md:px-2.5 lg:px-3 xl:px-4 py-0.5 sm:py-1 rounded-full border border-green-200">
                           <span className="text-[8px] sm:text-[10px] md:text-xs lg:text-sm truncate max-w-[40px] sm:max-w-[50px] md:max-w-[60px] lg:max-w-[70px] xl:max-w-[80px]">
                             {notification.sentBy}
@@ -514,8 +476,8 @@ const NotificationPanel = () => {
                     </div>
 
                     <div className="flex items-center flex-shrink-0 self-center">
-                      {expandedId === notification.id ? 
-                        <ChevronUp className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-green-500" /> : 
+                      {expandedId === notification.id ?
+                        <ChevronUp className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-green-500" /> :
                         <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-green-500" />
                       }
                     </div>
@@ -577,7 +539,7 @@ const NotificationPanel = () => {
                             <span className="hidden sm:inline">Editar</span>
                             <span className="sm:hidden">Edit</span>
                           </button>
-                          <button 
+                          <button
                             onClick={() => deleteNotification(notification.id)}
                             className="px-2 sm:px-2.5 md:px-3 lg:px-4 xl:px-5 py-1 sm:py-1.5 text-[8px] sm:text-[10px] md:text-xs lg:text-sm bg-red-50 text-red-800 border border-red-300 rounded-lg sm:rounded-xl hover:bg-red-100 flex items-center gap-0.5 sm:gap-1 transition-colors"
                           >

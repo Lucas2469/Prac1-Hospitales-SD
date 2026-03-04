@@ -39,6 +39,24 @@ export const reportMetrics = async (req, res) => {
 };
 
 /**
+ * GET /api/metrics/:clientId/latest
+ * Devuelve el último snapshot completo (con todos los discos) de un cliente.
+ * Usado por el frontend para mostrar datos reales en DiskDetail.
+ */
+export const getLatest = async (req, res) => {
+  const { clientId } = req.params;
+  if (!clientId) return res.status(400).json({ message: "clientId es obligatorio" });
+
+  try {
+    const metric = await Metric.findOne({ clientId }).sort({ timestamp: -1 });
+    if (!metric) return res.status(404).json({ message: "Sin métricas para ese cliente" });
+    res.json(metric);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
  * GET /api/metrics/history?clientId=reg-01&limit=50
  * Devuelve histórico para gráficas (por cliente)
  */
@@ -74,18 +92,24 @@ export const getClusterSummary = async (req, res) => {
     const perNode = [];
 
     for (const m of latest) {
-      // Para esta práctica: “solo primer disco”
-      const d = (m.disks && m.disks[0]) ? m.disks[0] : null;
-      if (!d) continue;
+      if (!m.disks || m.disks.length === 0) continue;
 
-      total += d.total;
-      used += d.used;
-      free += d.free;
+      let nodeTotal = 0, nodeUsed = 0, nodeFree = 0;
+
+      for (const d of m.disks) {
+        nodeTotal += d.total;
+        nodeUsed += d.used;
+        nodeFree += d.free;
+      }
+
+      total += nodeTotal;
+      used += nodeUsed;
+      free += nodeFree;
 
       perNode.push({
         clientId: m.clientId,
         timestamp: m.timestamp,
-        disk: d,
+        disk: { total: nodeTotal, used: nodeUsed, free: nodeFree },
         statusSnapshot: m.statusSnapshot
       });
     }
@@ -100,6 +124,90 @@ export const getClusterSummary = async (req, res) => {
       percentGlobal,
       perNode
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * GET /api/metrics/cluster-history
+ * Agrupa todas las métricas de todos los nodos por hora/día y devuelve
+ * la suma de Total, Usado y Libre para gráfica lineal en el frontend.
+ */
+export const getClusterHistory = async (req, res) => {
+  try {
+    // Definimos el rango de tiempo (ej. últimos 14 días para una buena gráfica)
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 14);
+
+    const history = await Metric.aggregate([
+      // 1. Filtrar registros recientes
+      { $match: { timestamp: { $gte: cutoffDate } } },
+
+      // 2. Sumar el espacio de todos los discos del nodo
+      {
+        $addFields: {
+          nodeTotal: { $sum: "$disks.total" },
+          nodeUsed: { $sum: "$disks.used" },
+          nodeFree: { $sum: "$disks.free" }
+        }
+      },
+
+      // 3. Agrupar por hora exacta + NodeID, para obtener solo 1 lectura máxima por hora por cada nodo
+      {
+        $group: {
+          _id: {
+            clientId: "$clientId",
+            year: { $year: "$timestamp" },
+            month: { $month: "$timestamp" },
+            day: { $dayOfMonth: "$timestamp" },
+            hour: { $hour: "$timestamp" }
+          },
+          // Tomar el promedio o máximo del total de todo el nodo en esa hora
+          total: { $avg: "$nodeTotal" },
+          used: { $avg: "$nodeUsed" },
+          free: { $avg: "$nodeFree" }
+        }
+      },
+
+      // 4. Ahora agrupar esos representantes horarios a nivel de CLUSTER
+      {
+        $group: {
+          _id: {
+            year: "$_id.year",
+            month: "$_id.month",
+            day: "$_id.day",
+            hour: "$_id.hour"
+          },
+          clusterTotal: { $sum: "$total" },
+          clusterUsed: { $sum: "$used" },
+          clusterFree: { $sum: "$free" }
+        }
+      },
+
+      // 5. Ordenar cronológicamente
+      { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1, "_id.hour": 1 } },
+
+      // 6. Formatear la salida para Recharts
+      {
+        $project: {
+          _id: 0,
+          // Un string del tipo "DD/MM HH:00" usando concat
+          time: {
+            $concat: [
+              { $toString: "$_id.day" }, "/",
+              { $toString: "$_id.month" }, " ",
+              { $toString: "$_id.hour" }, ":00"
+            ]
+          },
+          totalSpace: { $round: ["$clusterTotal", 1] },
+          usedSpace: { $round: ["$clusterUsed", 1] },
+          freeSpace: { $round: ["$clusterFree", 1] }
+        }
+      }
+    ]);
+
+    res.json(history);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

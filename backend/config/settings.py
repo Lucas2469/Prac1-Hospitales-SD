@@ -6,7 +6,7 @@ HOST = os.getenv('CNS_HOST', '0.0.0.0') # Escucha en todas las interfaces (LAN/W
 PORT = int(os.getenv('CNS_PORT', 5000))
 BUFFER_SIZE = 4096
 ENCODING = 'utf-8'
-TIMEOUT_SECONDS = 30 # Tiempo antes de marcar un nodo como caído
+TIMEOUT_SECONDS = 60 # Tiempo antes de marcar un nodo como caído
 
 # Configuración profesional de Logging
 logging.basicConfig(
