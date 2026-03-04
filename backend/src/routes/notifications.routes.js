@@ -2,6 +2,7 @@ import express from "express";
 import {
     sendNotification,
     listActiveSockets,
+    getPendingNotifications
 } from "../controllers/notifications.controller.js";
 
 const router = express.Router();
@@ -18,5 +19,11 @@ router.post("/send", sendNotification);
  * Lista los nodos con socket TCP activo en Node.js
  */
 router.get("/active-sockets", listActiveSockets);
+
+/**
+ * GET /api/notifications/pending/:clientId
+ * Retorna (y marca como leídas) las alertas pendientes en base de datos
+ */
+router.get("/pending/:clientId", getPendingNotifications);
 
 export default router;

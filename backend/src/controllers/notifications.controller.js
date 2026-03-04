@@ -11,6 +11,7 @@
 
 import { sendToClient, getActiveClients } from "../services/socket.registry.js";
 import fetch from "node-fetch";
+import Notification from "../models/Notification.js";
 
 /**
  * POST /api/notifications/send
@@ -33,7 +34,20 @@ export const sendNotification = async (req, res) => {
         sentAt: new Date().toISOString(),
     };
 
-    // Intentar enviar via socket registry en memoria
+    // 1. Guardar siempre en Base de Datos por si falla el Push TCP (Fallback)
+    try {
+        await Notification.create({
+            clientId,
+            message,
+            type,
+            sentAt: payload.sentAt,
+            read: false
+        });
+    } catch (dbError) {
+        console.error("[Notifications] Error guardando notificación en DB:", dbError.message);
+    }
+
+    // 2. Intentar enviar via socket registry en memoria
     const result = sendToClient(clientId, payload);
 
     if (result.sent) {
@@ -83,4 +97,32 @@ export const sendNotification = async (req, res) => {
 export const listActiveSockets = (_req, res) => {
     const clients = getActiveClients();
     res.json({ count: clients.length, clients });
+};
+
+/**
+ * GET /api/notifications/pending/:clientId
+ * Retorna las notificaciones no leídas de un cliente y las marca como leídas
+ */
+export const getPendingNotifications = async (req, res) => {
+    const { clientId } = req.params;
+
+    if (!clientId) {
+        return res.status(400).json({ ok: false, error: "clientId es obligatorio" });
+    }
+
+    try {
+        // Buscar no leídas
+        const pending = await Notification.find({ clientId, read: false }).sort({ createdAt: 1 });
+
+        if (pending.length > 0) {
+            // Marcar como leídas
+            const ids = pending.map(p => p._id);
+            await Notification.updateMany({ _id: { $in: ids } }, { $set: { read: true } });
+        }
+
+        res.json({ ok: true, count: pending.length, notifications: pending });
+    } catch (error) {
+        console.error("[Notifications] Error obteniendo pendientes:", error.message);
+        res.status(500).json({ ok: false, error: "Error interno del servidor" });
+    }
 };

@@ -8,6 +8,8 @@ import { hostname } from "os";
 import { networkInterfaces } from "os";
 import { getDiskInfo } from "./diskCollector.js";
 import { logMessage } from "./logManager.js";
+import http from "http"; // Import HTTP for polling
+
 
 function getLocalIP() {
   const nets = networkInterfaces();
@@ -32,6 +34,7 @@ export function createClient(config) {
   } = config;
   let socket = null;
   let reportTimer = null;
+  let pollTimer = null; // Notification poll timer
   let isConnected = false;
   let bufferMetrics = [];
 
@@ -131,6 +134,45 @@ export function createClient(config) {
     }
   }
 
+  // --- NUEVO: Polling de Notificaciones Pendientes desde BD ---
+  function pollPendingNotifications() {
+    // Usamos el API port 4000 (Node.js REST backend)
+    const options = {
+      hostname: host,
+      port: 4000,
+      path: `/api/notifications/pending/${nodeAlias}`,
+      method: 'GET'
+    };
+
+    const req = http.request(options, (res) => {
+      let responseBody = '';
+      res.on('data', chunk => responseBody += chunk);
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          try {
+            const data = JSON.parse(responseBody);
+            if (data.ok && data.notifications && data.notifications.length > 0) {
+              // Iteramos sobre las notificaciones nuevas
+              for (const notif of data.notifications) {
+                console.log(`[tcpClient] 📥 Notificación descargada de BD: ${notif.message}`);
+                handleIncoming(notif);
+              }
+            }
+          } catch (e) {
+            console.warn("[tcpClient] Error parseando JSON del Polling:", e.message);
+          }
+        }
+      });
+    });
+
+    req.on('error', (e) => {
+      // Silenciar si el backend REST está apagado momentáneamente
+      // console.warn("[tcpClient] No se pudo hacer polling a REST API:", e.message);
+    });
+
+    req.end();
+  }
+
   function connect() {
     return new Promise((resolve, reject) => {
       socket = createConnection({ host, port }, async () => {
@@ -139,7 +181,10 @@ export function createClient(config) {
         if (typeof onConnect === 'function') onConnect();
         await doAutoJoin();
         flushBufferedMetrics();
+
         reportTimer = setInterval(sendMetricsReport, reportIntervalSec * 1000);
+        pollTimer = setInterval(pollPendingNotifications, 15000); // Poll every 15s
+
         await sendMetricsReport();
         resolve();
       });
@@ -164,7 +209,9 @@ export function createClient(config) {
       socket.on("close", (hadError) => {
         isConnected = false;
         if (reportTimer) clearInterval(reportTimer);
+        if (pollTimer) clearInterval(pollTimer);
         reportTimer = null;
+        pollTimer = null;
         if (typeof onDisconnect === "function") onDisconnect(hadError);
       });
     });
@@ -172,9 +219,11 @@ export function createClient(config) {
 
   function disconnect() {
     if (reportTimer) clearInterval(reportTimer);
+    if (pollTimer) clearInterval(pollTimer);
     if (socket) socket.destroy();
     socket = null;
     reportTimer = null;
+    pollTimer = null;
     isConnected = false;
   }
 
