@@ -17,7 +17,7 @@ import Log from "../models/Log.js";
 export const startHeartbeatWatcher = () => {
   // Umbral parametrizable: tiempo máximo sin reporte antes de marcar NO_REPORTA
   const threshold = Number(process.env.HEARTBEAT_THRESHOLD || 60000);
-  const checkInterval = 15_000; // revisar cada 15 segundos
+  const checkInterval = 60_000; // revisar cada 60 segundos (1 minuto)
 
   console.log(
     `[Heartbeat] Watcher iniciado | Umbral: ${threshold / 1000}s | Intervalo: ${checkInterval / 1000}s`
