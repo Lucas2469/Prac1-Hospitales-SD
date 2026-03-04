@@ -1,5 +1,6 @@
 import Metric from "../models/Metric.js";
 import Client from "../models/Client.js";
+import Notification from "../models/Notification.js";
 
 /**
  * POST /api/metrics/report
@@ -21,18 +22,32 @@ export const reportMetrics = async (req, res) => {
     const timeDiffMs = Math.abs(new Date().getTime() - ts.getTime());
     if (timeDiffMs > 60000) {
       // Diferencia mayor a 1 minuto: Enviar notificación al agente
+      const message = "Verifique su configuracion (Hora desincronizada)";
+      const notifType = "NOTIFICATION";
+      const sentAt = new Date().toISOString();
+
+      // 1. Guardar en Base de Datos para el Polling (Nodos Remotos / Firewall HTTP)
+      try {
+        await Notification.create({
+          clientId,
+          message,
+          type: notifType,
+          sentAt,
+          read: false
+        });
+      } catch (dbError) {
+        console.error(`[TimeSync] Error guardando notificación en DB para ${clientId}:`, dbError.message);
+      }
+
+      // 2. Intentar Push por TCP/Python (Nodos Locales)
       try {
         await fetch("http://127.0.0.1:5002/notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            clientId,
-            type: "NOTIFICATION",
-            message: "Verifique su configuracion (Hora desincronizada)",
-            sentAt: new Date().toISOString()
-          })
+          // Enviar también body JSON
+          body: JSON.stringify({ clientId, type: notifType, message, sentAt })
         });
-        console.warn(`[TimeSync] ⏰ Reloj desincronizado en ${clientId}. Notificación enviada.`);
+        console.warn(`[TimeSync] ⏰ Reloj desincronizado en ${clientId}. Notificación generada.`);
       } catch (err) {
         console.error(`[TimeSync] Error al notificar a Python (${clientId}):`, err.message);
       }
