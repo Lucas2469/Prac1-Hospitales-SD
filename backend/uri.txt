@@ -1,0 +1,1 @@
+mongodb://fabricabla_db_user:Wj7MFh3Utn7yVsDR@ac-apsurob-shard-00-01.e0tjitb.mongodb.net:27017,ac-apsurob-shard-00-00.e0tjitb.mongodb.net:27017,ac-apsurob-shard-00-02.e0tjitb.mongodb.net:27017/?ssl=true&authSource=admin

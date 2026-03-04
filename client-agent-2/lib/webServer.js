@@ -11,7 +11,6 @@ import { fileURLToPath } from "url";
 import { networkInterfaces } from "os";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PORT = parseInt(process.env.UI_PORT || 3001, 10);
 
 // Obtener IP LAN real
 function getLocalIp() {
@@ -50,6 +49,7 @@ export function addIncomingNotification(msg) {
 }
 
 export function startWebUI() {
+    const PORT = parseInt(process.env.UI_PORT || 3001, 10);
     const html = readFileSync(join(__dirname, "..", "public", "index.html"), "utf8");
 
     const server = createServer((req, res) => {
