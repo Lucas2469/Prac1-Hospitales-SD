@@ -82,6 +82,12 @@ export function createClient(config) {
       timestamp: new Date().toISOString(),
     };
 
+    // Tarea: Guardar log en un archivo local
+    logMessage(`Métricas recolectadas: ${disks.length} disco(s)`, {
+      type: "LOCAL_METRICS",
+      ...data
+    });
+
     if (isConnected && send(data)) {
       bufferMetrics = [];
       console.log(`[tcpClient] Métricas enviadas (${disks.length} disco/s)`);

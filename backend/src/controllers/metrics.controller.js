@@ -16,6 +16,29 @@ export const reportMetrics = async (req, res) => {
   // Normalizar timestamp: si no viene, usamos servidor (UTC)
   const ts = timestamp ? new Date(timestamp) : new Date();
 
+  // Validar sincronización de tiempo
+  if (timestamp) {
+    const timeDiffMs = Math.abs(new Date().getTime() - ts.getTime());
+    if (timeDiffMs > 60000) {
+      // Diferencia mayor a 1 minuto: Enviar notificación al agente
+      try {
+        await fetch("http://127.0.0.1:5002/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientId,
+            type: "NOTIFICATION",
+            message: "Verifique su configuracion (Hora desincronizada)",
+            sentAt: new Date().toISOString()
+          })
+        });
+        console.warn(`[TimeSync] ⏰ Reloj desincronizado en ${clientId}. Notificación enviada.`);
+      } catch (err) {
+        console.error(`[TimeSync] Error al notificar a Python (${clientId}):`, err.message);
+      }
+    }
+  }
+
   try {
     // 1) Guardar historial
     const metric = await Metric.create({

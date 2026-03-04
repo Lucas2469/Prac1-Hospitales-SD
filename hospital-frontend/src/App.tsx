@@ -6,14 +6,14 @@ import NodeGrid from './components/dashboard/NodeGrid';
 import GlobalStats from './components/dashboard/GlobalStats';
 import NotificationPanel from './components/dashboard/NotificationPanel';
 import DiskDetail from './components/dashboard/DiskDetail';
-
+import ServerLogs from './components/dashboard/ServerLogs';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('nodes');
 
   const renderContent = () => {
-    switch(activeTab) {
+    switch (activeTab) {
       case 'nodes':
         return <NodeGrid setActiveTab={setActiveTab} />;
       case 'stats':
@@ -22,6 +22,8 @@ function App() {
         return <NotificationPanel />;
       case 'disks':
         return <DiskDetail setActiveTab={setActiveTab} />;
+      case 'logs':
+        return <ServerLogs />;
       default:
         return <NodeGrid setActiveTab={setActiveTab} />;
     }
@@ -30,13 +32,13 @@ function App() {
   return (
     <AppProvider>
       <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar 
+        <Sidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           isOpen={sidebarOpen}
           setIsOpen={setSidebarOpen}
         />
-        
+
         <div className="flex-1 flex flex-col">
           <Header setIsOpen={setSidebarOpen} />
           <main className="flex-1 overflow-auto w-full">

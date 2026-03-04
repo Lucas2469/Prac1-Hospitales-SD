@@ -35,3 +35,19 @@ export const getLogs = async (req, res) => {
   const rows = await Log.find({ clientId }).sort({ timestamp: -1 }).limit(lim);
   res.json(rows);
 };
+
+/**
+ * GET /api/logs/all?limit=100
+ * Global endpoint for Server Logs Dashboard View
+ */
+export const getAllLogs = async (req, res) => {
+  const { limit = 100 } = req.query;
+  const lim = Math.min(Number(limit) || 100, 1000);
+
+  try {
+    const rows = await Log.find({}).sort({ timestamp: -1 }).limit(lim);
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

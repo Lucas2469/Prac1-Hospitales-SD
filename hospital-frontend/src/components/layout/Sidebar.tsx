@@ -10,6 +10,7 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
   const menuItems = [
     { id: 'nodes', name: 'Nodos', icon: LayoutGrid, badge: null },
     { id: 'stats', name: 'Estadísticas', icon: Globe, badge: null },
+    { id: 'logs', name: 'Historial / Logs', icon: Settings, badge: null },
     { id: 'notifications', name: 'Notificaciones', icon: Bell, badge: unread > 0 ? unread : null },
   ];
 
@@ -88,8 +89,8 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
                     )}
 
                     <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isActive
-                        ? 'bg-white/20'
-                        : 'bg-white/5 group-hover:bg-white/10'
+                      ? 'bg-white/20'
+                      : 'bg-white/5 group-hover:bg-white/10'
                       }`}>
                       <Icon className="w-4 h-4" />
                     </div>
@@ -98,8 +99,8 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen }) => {
 
                     {item.badge != null && (
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center ${isActive
-                          ? 'bg-white/30 text-white'
-                          : 'bg-green-500/20 text-green-400'
+                        ? 'bg-white/30 text-white'
+                        : 'bg-green-500/20 text-green-400'
                         }`}>
                         {item.badge}
                       </span>
